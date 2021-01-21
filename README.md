@@ -15,6 +15,8 @@ dependency:
   path: https://github.com/leroycep/zig-ulid
 ```
 
+Developed with Zig version `0.8.0-dev.1028+287f640cc`.
+
 Based on [`ulid-rs`][] by [dylanhart][].
 
 [`ulid-rs`]: https://github.com/dylanhart/ulid-rs
