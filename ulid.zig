@@ -4,10 +4,13 @@ const random = std.crypto.random;
 const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 const ULID_LEN = 26;
 
-pub fn ulid() u128 {
+pub fn ulid() [16]u8 {
     const time_bits = @intCast(u48, std.time.milliTimestamp());
     const rand_bits = random.int(u80);
-    return (@as(u128, time_bits) << 80) | @as(u128, rand_bits);
+
+    const value = (@as(u128, time_bits) << 80) | @as(u128, rand_bits);
+    const big_endian_ulid = std.mem.nativeToBig(u128, value);
+    return @bitCast([16]u8, big_endian_ulid);
 }
 
 pub const MonotonicFactory = struct {
