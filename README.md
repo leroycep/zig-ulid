@@ -21,11 +21,11 @@ Based on [`ulid-rs`][] by [dylanhart][].
 [dylanhart]: https://github.com/dylanhart
 
 -   [`ulid`](#fn-ulid-16u8)
--   [`encode`](#fn-encode-16u8-26u8)
--   [`encodeTo`](#fn-encodeTo-u8-16u8-void)
--   [`decode`](#fn-decode-16u8-26u8)
--   [`cmp`](#fn-cmp-16u8-16u8-cmp)
--   [`eq`](#fn-eq-16u8-16u8-bool)
+-   [`encode`](#fn-encode16u8-26u8)
+-   [`encodeTo`](#fn-encodeTou8-16u8-void)
+-   [`decode`](#fn-decode26u8-16u8)
+-   [`cmp`](#fn-cmp16u8-16u8-cmp)
+-   [`eq`](#fn-eq16u8-16u8-bool)
 -   [`MonotonicFactory`](#monotonicfactory-struct)
 
 ## `fn ulid() [16]u8`
@@ -58,7 +58,7 @@ test "encode" {
 }
 ```
 
-## `fn encodeTo([]u8, [16]u8)`
+## `fn encodeTo([]u8, [16]u8) !void`
 
 Encodes the given ULID into the buffer.
 
