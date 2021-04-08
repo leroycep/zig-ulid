@@ -139,9 +139,7 @@ pub fn decode(text: []const u8) ![16]u8 {
     return @bitCast([16]u8, big_endian_ulid);
 }
 
-pub const Cmp = enum { lt, gt, eq };
-
-pub fn cmp(a: [16]u8, b: [16]u8) Cmp {
+pub fn cmp(a: [16]u8, b: [16]u8) std.math.Order {
     for (a) |a_val, idx| {
         if (a_val == b[idx]) {
             continue;
@@ -209,6 +207,6 @@ test "Monotonic ULID factory: sequential output always increases" {
 
     var prev_ulid = generated_ulids[0];
     for (generated_ulids[1..]) |current_ulid| {
-        std.testing.expectEqual(Cmp.gt, cmp(current_ulid, prev_ulid));
+        std.testing.expectEqual(std.math.Order.gt, cmp(current_ulid, prev_ulid));
     }
 }
