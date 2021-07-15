@@ -20,7 +20,7 @@ pub fn build(b: *Builder) void {
     const target = b.standardTargetOptions(.{});
     inline for (EXAMPLES) |example| {
         var exe = b.addExecutable(example, EXAMPLES_DIR ++ "/" ++ example ++ ".zig");
-        exe.addPackage(.{ .name = "ulid", .path = "ulid.zig" });
+        exe.addPackage(.{ .name = "ulid", .path = .{ .path = "ulid.zig" } });
         exe.setBuildMode(mode);
         exe.setTarget(target);
 

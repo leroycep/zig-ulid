@@ -67,7 +67,7 @@ pub const MonotonicFactory = struct {
     }
 };
 
-const LOOKUP = comptime gen_lookup_table: {
+const LOOKUP = gen_lookup_table: {
     const CharType = union(enum) {
         Invalid: void,
         Ignored: void,
@@ -161,8 +161,8 @@ test "valid" {
         0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
     };
     const enc1 = "21850M2GA1850M2GA1850M2GA1";
-    std.testing.expectEqual(val1, try decode(enc1));
-    std.testing.expectEqualSlices(u8, enc1, &encode(val1));
+    try std.testing.expectEqual(val1, try decode(enc1));
+    try std.testing.expectEqualSlices(u8, enc1, &encode(val1));
 
     const val2 = [16]u8{ 0x4d, 0x4e, 0x38, 0x50, 0x51, 0x44, 0x4a, 0x59, 0x45, 0x42, 0x34, 0x33, 0x5a, 0x41, 0x37, 0x56 };
     const enc2 = "2D9RW50MA499CMAGHM6DD42DTP";
@@ -172,28 +172,28 @@ test "valid" {
         lower[idx] = std.ascii.toLower(char);
     }
 
-    std.testing.expectEqualSlices(u8, enc2, &encode(val2));
-    std.testing.expectEqual(val2, try decode(enc2));
-    std.testing.expectEqual(val2, try decode(&lower));
+    try std.testing.expectEqualSlices(u8, enc2, &encode(val2));
+    try std.testing.expectEqual(val2, try decode(enc2));
+    try std.testing.expectEqual(val2, try decode(&lower));
 
     const enc3 = "2D9RW-50MA-499C-MAGH-M6DD-42DTP";
-    std.testing.expectEqual(val2, try decode(enc3));
+    try std.testing.expectEqual(val2, try decode(enc3));
 }
 
 test "invalid length" {
-    std.testing.expectError(error.InvalidLength, decode(""));
-    std.testing.expectError(error.InvalidLength, decode("2D9RW50MA499CMAGHM6DD42DT"));
-    std.testing.expectError(error.InvalidLength, decode("2D9RW50MA499CMAGHM6DD42DTPP"));
+    try std.testing.expectError(error.InvalidLength, decode(""));
+    try std.testing.expectError(error.InvalidLength, decode("2D9RW50MA499CMAGHM6DD42DT"));
+    try std.testing.expectError(error.InvalidLength, decode("2D9RW50MA499CMAGHM6DD42DTPP"));
 }
 
 test "invalid characters" {
-    std.testing.expectError(error.InvalidCharacter, decode("2D9RW50[A499CMAGHM6DD42DTP"));
-    std.testing.expectError(error.InvalidCharacter, decode("2D9RW50MA49%CMAGHM6DD42DTP"));
+    try std.testing.expectError(error.InvalidCharacter, decode("2D9RW50[A499CMAGHM6DD42DTP"));
+    try std.testing.expectError(error.InvalidCharacter, decode("2D9RW50MA49%CMAGHM6DD42DTP"));
 }
 
 test "overflows" {
-    std.testing.expectError(error.Overflow, decode("8ZZZZZZZZZZZZZZZZZZZZZZZZZ"));
-    std.testing.expectError(error.Overflow, decode("ZZZZZZZZZZZZZZZZZZZZZZZZZZ"));
+    try std.testing.expectError(error.Overflow, decode("8ZZZZZZZZZZZZZZZZZZZZZZZZZ"));
+    try std.testing.expectError(error.Overflow, decode("ZZZZZZZZZZZZZZZZZZZZZZZZZZ"));
 }
 
 test "compare ulids" {}
@@ -207,6 +207,6 @@ test "Monotonic ULID factory: sequential output always increases" {
 
     var prev_ulid = generated_ulids[0];
     for (generated_ulids[1..]) |current_ulid| {
-        std.testing.expectEqual(std.math.Order.gt, cmp(current_ulid, prev_ulid));
+        try std.testing.expectEqual(std.math.Order.gt, cmp(current_ulid, prev_ulid));
     }
 }
