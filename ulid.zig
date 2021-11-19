@@ -1,17 +1,17 @@
 // MIT License
-// 
+//
 // Copyright (c) 2021 LeRoyce Pearson
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all
 // copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -24,15 +24,17 @@ const std = @import("std");
 const random = std.crypto.random;
 
 const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-const ULID_LEN = 26;
+const ULID_BASE32_LEN = 26;
 
-pub fn ulid() [16]u8 {
+const ULID = @This();
+
+value: u128,
+
+pub fn now() @This() {
     const time_bits = @intCast(u48, std.time.milliTimestamp());
     const rand_bits = random.int(u80);
 
-    const value = (@as(u128, time_bits) << 80) | @as(u128, rand_bits);
-    const big_endian_ulid = std.mem.nativeToBig(u128, value);
-    return @bitCast([16]u8, big_endian_ulid);
+    return .{ .value = (@as(u128, time_bits) << 80) | @as(u128, rand_bits) };
 }
 
 pub const MonotonicFactory = struct {
@@ -40,7 +42,7 @@ pub const MonotonicFactory = struct {
 
     // TODO: make these the exact size needed when issue is resolved: https://github.com/ziglang/zig/issues/7836
 
-    // Set this to true to ensure that each value returned from ulidNow is greater than the last
+    // Set this to true to ensure that each value returned from `now()` is greater than the last
     last_timestamp_ms: u64 = 0,
     last_random: u128 = 0,
 
@@ -52,7 +54,7 @@ pub const MonotonicFactory = struct {
         };
     }
 
-    pub fn ulidNow(this: *@This()) [16]u8 {
+    pub fn now(this: *@This()) ULID {
         const time = @intCast(u48, std.time.milliTimestamp());
         if (this.last_timestamp_ms == time) {
             this.last_random += 1;
@@ -61,9 +63,7 @@ pub const MonotonicFactory = struct {
             this.last_random = this.rng.random.int(u80);
         }
 
-        const ulid_int = (@as(u128, time) << 80) | @as(u128, this.last_random);
-        const ulid_int_big = std.mem.nativeToBig(u128, ulid_int);
-        return @bitCast([16]u8, ulid_int_big);
+        return ULID{ .value = (@as(u128, time) << 80) | @as(u128, this.last_random) };
     }
 };
 
@@ -91,28 +91,32 @@ const LOOKUP = gen_lookup_table: {
     break :gen_lookup_table lookup;
 };
 
-pub fn encodeTo(buffer: []u8, valueIn: [16]u8) !void {
-    if (buffer.len < ULID_LEN) return error.BufferToSmall;
+/// Convert the ULID into a byte array.
+pub fn toBytes(this: @This()) [16]u8 {
+    return @bitCast([16]u8, std.mem.nativeToBig(u128, this.value));
+}
 
-    var value = std.mem.bigToNative(u128, @bitCast(u128, valueIn));
+pub fn fromBytes(bytes: [16]u8) @This() {
+    return @This(){
+        .value = std.mem.bigToNative(u128, @bitCast(u128, bytes)),
+    };
+}
 
-    var i: usize = ULID_LEN;
+pub fn encodeBase32(this: @This()) [ULID_BASE32_LEN]u8 {
+    var value = this.value;
+
+    var buffer: [ULID_BASE32_LEN]u8 = undefined;
+    var i: usize = ULID_BASE32_LEN;
     while (i > 0) : (i -= 1) {
         buffer[i - 1] = ALPHABET[@truncate(u5, value)];
         value >>= 5;
     }
-}
 
-pub fn encode(value: [16]u8) [ULID_LEN]u8 {
-    var buffer: [ULID_LEN]u8 = undefined;
-    encodeTo(&buffer, value) catch |err| switch (err) {
-        error.BufferToSmall => unreachable,
-    };
     return buffer;
 }
 
-pub fn decode(text: []const u8) ![16]u8 {
-    if (text.len < ULID_LEN) return error.InvalidLength;
+pub fn decodeBase32(text: []const u8) !@This() {
+    if (text.len < ULID_BASE32_LEN) return error.InvalidLength;
 
     var value: u128 = 0;
     var chars_not_ignored: usize = 0;
@@ -123,7 +127,7 @@ pub fn decode(text: []const u8) ![16]u8 {
             .Ignored => {},
             .Value => |char_val| {
                 chars_not_ignored += 1;
-                if (chars_not_ignored > ULID_LEN) {
+                if (chars_not_ignored > ULID_BASE32_LEN) {
                     return error.InvalidLength;
                 }
 
@@ -135,36 +139,24 @@ pub fn decode(text: []const u8) ![16]u8 {
         }
     }
 
-    const big_endian_ulid = std.mem.nativeToBig(u128, value);
-    return @bitCast([16]u8, big_endian_ulid);
+    return @This(){ .value = value };
 }
 
-pub fn cmp(a: [16]u8, b: [16]u8) std.math.Order {
-    for (a) |a_val, idx| {
-        if (a_val == b[idx]) {
-            continue;
-        } else if (a_val > b[idx]) {
-            return .gt;
-        } else {
-            return .lt;
-        }
-    }
-    return .eq;
+pub fn cmp(a: @This(), b: @This()) std.math.Order {
+    return std.math.order(a.value, b.value);
 }
 
-pub fn eq(a: [16]u8, b: [16]u8) bool {
+pub fn eq(a: @This(), b: @This()) bool {
     return cmp(a, b) == .eq;
 }
 
 test "valid" {
-    const val1 = [16]u8{
-        0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
-    };
+    const val1 = @This(){ .value = 0x41414141414141414141414141414141 };
     const enc1 = "21850M2GA1850M2GA1850M2GA1";
-    try std.testing.expectEqual(val1, try decode(enc1));
-    try std.testing.expectEqualSlices(u8, enc1, &encode(val1));
+    try std.testing.expectEqual(val1, try decodeBase32(enc1));
+    try std.testing.expectEqualSlices(u8, enc1, &encodeBase32(val1));
 
-    const val2 = [16]u8{ 0x4d, 0x4e, 0x38, 0x50, 0x51, 0x44, 0x4a, 0x59, 0x45, 0x42, 0x34, 0x33, 0x5a, 0x41, 0x37, 0x56 };
+    const val2 = @This(){ .value = 0x4d4e385051444a59454234335a413756 };
     const enc2 = "2D9RW50MA499CMAGHM6DD42DTP";
 
     var lower: [enc2.len]u8 = undefined;
@@ -172,41 +164,69 @@ test "valid" {
         lower[idx] = std.ascii.toLower(char);
     }
 
-    try std.testing.expectEqualSlices(u8, enc2, &encode(val2));
-    try std.testing.expectEqual(val2, try decode(enc2));
-    try std.testing.expectEqual(val2, try decode(&lower));
+    try std.testing.expectEqualSlices(u8, enc2, &encodeBase32(val2));
+    try std.testing.expectEqual(val2, try decodeBase32(enc2));
+    try std.testing.expectEqual(val2, try decodeBase32(&lower));
 
     const enc3 = "2D9RW-50MA-499C-MAGH-M6DD-42DTP";
-    try std.testing.expectEqual(val2, try decode(enc3));
+    try std.testing.expectEqual(val2, try decodeBase32(enc3));
 }
 
 test "invalid length" {
-    try std.testing.expectError(error.InvalidLength, decode(""));
-    try std.testing.expectError(error.InvalidLength, decode("2D9RW50MA499CMAGHM6DD42DT"));
-    try std.testing.expectError(error.InvalidLength, decode("2D9RW50MA499CMAGHM6DD42DTPP"));
+    try std.testing.expectError(error.InvalidLength, decodeBase32(""));
+    try std.testing.expectError(error.InvalidLength, decodeBase32("2D9RW50MA499CMAGHM6DD42DT"));
+    try std.testing.expectError(error.InvalidLength, decodeBase32("2D9RW50MA499CMAGHM6DD42DTPP"));
 }
 
 test "invalid characters" {
-    try std.testing.expectError(error.InvalidCharacter, decode("2D9RW50[A499CMAGHM6DD42DTP"));
-    try std.testing.expectError(error.InvalidCharacter, decode("2D9RW50MA49%CMAGHM6DD42DTP"));
+    try std.testing.expectError(error.InvalidCharacter, decodeBase32("2D9RW50[A499CMAGHM6DD42DTP"));
+    try std.testing.expectError(error.InvalidCharacter, decodeBase32("2D9RW50MA49%CMAGHM6DD42DTP"));
 }
 
 test "overflows" {
-    try std.testing.expectError(error.Overflow, decode("8ZZZZZZZZZZZZZZZZZZZZZZZZZ"));
-    try std.testing.expectError(error.Overflow, decode("ZZZZZZZZZZZZZZZZZZZZZZZZZZ"));
+    try std.testing.expectError(error.Overflow, decodeBase32("8ZZZZZZZZZZZZZZZZZZZZZZZZZ"));
+    try std.testing.expectError(error.Overflow, decodeBase32("ZZZZZZZZZZZZZZZZZZZZZZZZZZ"));
 }
-
-test "compare ulids" {}
 
 test "Monotonic ULID factory: sequential output always increases" {
     var ulid_factory = try MonotonicFactory.init();
-    var generated_ulids: [1024][16]u8 = undefined;
+    var generated_ulids: [1024]@This() = undefined;
     for (generated_ulids) |*ulid_to_generate| {
-        ulid_to_generate.* = ulid_factory.ulidNow();
+        ulid_to_generate.* = ulid_factory.now();
     }
 
     var prev_ulid = generated_ulids[0];
     for (generated_ulids[1..]) |current_ulid| {
         try std.testing.expectEqual(std.math.Order.gt, cmp(current_ulid, prev_ulid));
     }
+}
+
+test "test random values" {
+    var seed: u64 = undefined;
+    random.bytes(std.mem.asBytes(&seed));
+    errdefer std.log.err("seed = {X}", .{seed});
+
+    var rng = std.rand.DefaultPrng.init(seed);
+
+    const count = 1_000_000;
+    var i: usize = 0;
+    while (i < count) : (i += 1) {
+        const value = ULID{
+            .value = rng.random.int(u128),
+        };
+        errdefer std.log.err("value = {s}", .{value.encodeBase32()});
+
+        try testEncodeDecode(value);
+    }
+}
+
+fn testEncodeDecode(value: ULID) !void {
+    const base32_encoded = value.encodeBase32();
+    const base32_decoded = try ULID.decodeBase32(&base32_encoded);
+
+    const byte_encoded = value.toBytes();
+    const byte_decoded = ULID.fromBytes(byte_encoded);
+
+    try std.testing.expect(value.eq(base32_decoded));
+    try std.testing.expect(value.eq(byte_decoded));
 }
