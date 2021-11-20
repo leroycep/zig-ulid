@@ -60,7 +60,8 @@ pub const MonotonicFactory = struct {
             this.last_random += 1;
         } else {
             this.last_timestamp_ms = time;
-            this.last_random = this.rng.random.int(u80);
+            const rand = this.rng.random();
+            this.last_random = rand.int(u80);
         }
 
         return ULID{ .value = (@as(u128, time) << 80) | @as(u128, this.last_random) };
@@ -207,12 +208,13 @@ test "test random values" {
     errdefer std.log.err("seed = {X}", .{seed});
 
     var rng = std.rand.DefaultPrng.init(seed);
+    const rand = rng.random();
 
-    const count = 1_000_000;
+    const count = 500_000;
     var i: usize = 0;
     while (i < count) : (i += 1) {
         const value = ULID{
-            .value = rng.random.int(u128),
+            .value = rand.int(u128),
         };
         errdefer std.log.err("value = {s}", .{value.encodeBase32()});
 
