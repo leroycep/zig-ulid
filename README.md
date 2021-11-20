@@ -22,17 +22,16 @@ Based on [`ulid-rs`][] by [dylanhart][].
 [`ulid-rs`]: https://github.com/dylanhart/ulid-rs
 [dylanhart]: https://github.com/dylanhart
 
--   [`ulid`](#fn-ulid-16u8)
--   [`encode`](#fn-encode16u8-26u8)
--   [`encodeTo`](#fn-encodeTou8-16u8-void)
--   [`decode`](#fn-decode26u8-16u8)
--   [`cmp`](#fn-cmp16u8-16u8-cmp)
--   [`eq`](#fn-eq16u8-16u8-bool)
+-   [`now`](#fn-now-ulid)
+-   [`encodeBase32`](#fn-encodeBase32ulid-26u8)
+-   [`decodeBase32`](#fn-decodeBase32u8-ulid)
+-   [`cmp`](#fn-cmpulid-ulid-stdmathOrder)
+-   [`eq`](#fn-equlid-ulid-bool)
 -   [`MonotonicFactory`](#monotonicfactory-struct)
 
-## `fn ulid() [16]u8`
+## `fn now() ulid`
 
-Generates a binary ulid using `std.time.milliTimestamp()` and the thread-local
+Generates a ulid using `std.time.milliTimestamp()` and the thread-local
 cryptographic psuedo random number generator.
 
 ```zig
@@ -40,47 +39,29 @@ const std = @import("std");
 const ulid = @import("ulid");
 
 pub fn main() void {
-    const generated_ulid = ulid.ulid();
-    std.log.info("Generated ulid: {s}", .{ulid.encode(generated_ulid)});
+    const generated_ulid = ulid.encode();
+    std.log.info("Generated ulid: {s}", .{generated_ulid.encodeBase32()});
 }
 ```
 
-## `fn encode([16]u8) [26]u8`
+## `fn encodeBase32(ulid) [26]u8`
 
-Converts a binary ulid to it's base32 encoding.
+Converts a ulid to it's base32 encoding.
 
 ```zig
 const std = @import("std");
 const ulid = @import("ulid");
 
 test "encode" {
-    const value = [1]u8{ 0x41 } ** 16;
-    const encoded = ulid.encode(value);
-    std.testing.expectEqualSlices(u8, "21850M2GA1850M2GA1850M2GA1", &encoded);
+    const value = ulid.fromBytes([1]u8{ 0x41 } ** 16);
+    const encoded = ulid.encodeBase32(value);
+    std.testing.expectEqualStrings("21850M2GA1850M2GA1850M2GA1", &encoded);
 }
 ```
 
-## `fn encodeTo([]u8, [16]u8) !void`
+## `fn decodeBase32([]u8) !ulid`
 
-Encodes the given ULID into the buffer.
-
-```zig
-const std = @import("std");
-const ulid = @import("ulid");
-
-test "encode" {
-    const value = [1]u8{ 0x41 } ** 16;
-    const encoded: [26]u8 = undefined;
-    ulid.encodeTo(&encoded, value) catch |err| switch(err){
-        error.BufferToSmall => unreachable,
-    };
-    std.testing.expectEqualSlices(u8, "21850M2GA1850M2GA1850M2GA1", &encoded);
-}
-```
-
-## `fn decode([26]u8) ![16]u8`
-
-Parses a base32 encoded ULID into raw bytes.
+Parses a base32 encoded ULID.
 
 ```zig
 const std = @import("std");
@@ -88,12 +69,12 @@ const ulid = @import("ulid");
 
 test "decode" {
     const string = "21850M2GA1850M2GA1850M2GA1";
-    const decoded = try ulid.decode(string);
-    std.testing.expectEqualSlices(u8, &([1]u8{ 0x41 } ** 16), &decoded);
+    const decoded = try ulid.decodeBase32(string);
+    std.testing.expectEqualStrings(&([1]u8{ 0x41 } ** 16), &decoded);
 }
 ```
 
-## `fn cmp([16]u8, [16]u8) Cmp`
+## `fn cmp(ulid, ulid) std.math.Order`
 
 Compare two ULIDs.
 
@@ -101,18 +82,18 @@ Compare two ULIDs.
 const std = @import("std");
 const ulid = @import("ulid");
 
-pub fn main() void {
-    const value1 = ulid.decode("01EWJ2BNFTSB4CPJP2C9291V9Q");
-    const value2 = ulid.decode("01EWJ2CXQHDBB7K18P6GZGPQ9C");
-    switch (ulid.cmp(value1, value2)) {
-        .lt => std.log.info("{s} < {s}", .{&ulid.encode(value1), &ulid.encode(value2)}),
-        .eq => std.log.info("{s} = {s}", .{&ulid.encode(value1), &ulid.encode(value2)}),
-        .gt => std.log.info("{s} > {s}", .{&ulid.encode(value1), &ulid.encode(value2)}),
+pub fn main() !void {
+    const value1 = try ulid.decodeBase32("01EWJ2BNFTSB4CPJP2C9291V9Q");
+    const value2 = try ulid.decodeBase32("01EWJ2CXQHDBB7K18P6GZGPQ9C");
+    switch (value1.cmp(value2)) {
+        .lt => std.log.info("{s} < {s}", .{&value1.encodeBase32(), &value2.encodeBase32()}),
+        .eq => std.log.info("{s} = {s}", .{&value1.encodeBase32(), &value2.encodeBase32()}),
+        .gt => std.log.info("{s} > {s}", .{&value1.encodeBase32(), &value2.encodeBase32()}),
     }
 }
 ```
 
-## `fn eq([16]u8, [16]u8) bool`
+## `fn eq(ulid, ulid) bool`
 
 Check if two ULIDs are equal.
 
@@ -123,10 +104,10 @@ const ulid = @import("ulid");
 pub fn main() void {
     const value1 = ulid.decode("01EWJ2BNFTSB4CPJP2C9291V9Q");
     const value2 = ulid.decode("01EWJ2CXQHDBB7K18P6GZGPQ9C");
-    if (ulid.eq(value1, value2)) {
-        std.log.info("{s} = {s}", .{&ulid.encode(value1), &ulid.encode(value2)}),
+    if (value1.eq(value2)) {
+        std.log.info("{s} = {s}", .{&value1.encodeBase32(), &value2.encodeBase32()}),
     } else {
-        std.log.info("{s} =/= {s}", .{&ulid.encode(value1), &ulid.encode(value2)}),
+        std.log.info("{s} =/= {s}", .{&value1.encodeBase32(), &value2.encodeBase32()}),
     }
 }
 ```
@@ -142,8 +123,8 @@ const ulid = @import("ulid");
 test "Monotonic ULID factory: sequential output always increases" {
     var ulid_factory = try ulid.MonotonicFactory.init();
     
-    var value1 = ulid_factory.ulidNow();
-    var value2 = ulid_factory.ulidNow();
+    var value1 = ulid_factory.now();
+    var value2 = ulid_factory.now();
     
     std.testing.expect(ulid.cmp(value2, value1) == .gt);
 }

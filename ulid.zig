@@ -155,7 +155,7 @@ test "valid" {
     const val1 = @This(){ .value = 0x41414141414141414141414141414141 };
     const enc1 = "21850M2GA1850M2GA1850M2GA1";
     try std.testing.expectEqual(val1, try decodeBase32(enc1));
-    try std.testing.expectEqualSlices(u8, enc1, &encodeBase32(val1));
+    try std.testing.expectEqualStrings(enc1, &encodeBase32(val1));
 
     const val2 = @This(){ .value = 0x4d4e385051444a59454234335a413756 };
     const enc2 = "2D9RW50MA499CMAGHM6DD42DTP";
