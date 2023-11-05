@@ -193,7 +193,7 @@ test "overflows" {
 test "Monotonic ULID factory: sequential output always increases" {
     var ulid_factory = try MonotonicFactory.init();
     var generated_ulids: [1024]@This() = undefined;
-    for (generated_ulids) |*ulid_to_generate| {
+    for (&generated_ulids) |*ulid_to_generate| {
         ulid_to_generate.* = ulid_factory.now();
     }
 
