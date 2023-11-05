@@ -31,7 +31,7 @@ const ULID = @This();
 value: u128,
 
 pub fn now() @This() {
-    const time_bits = @intCast(u48, std.time.milliTimestamp());
+    const time_bits = @as(u48, @intCast(std.time.milliTimestamp()));
     const rand_bits = random.int(u80);
 
     return .{ .value = (@as(u128, time_bits) << 80) | @as(u128, rand_bits) };
@@ -55,7 +55,7 @@ pub const MonotonicFactory = struct {
     }
 
     pub fn now(this: *@This()) ULID {
-        const time = @intCast(u48, std.time.milliTimestamp());
+        const time = @as(u48, @intCast(std.time.milliTimestamp()));
         if (this.last_timestamp_ms == time) {
             this.last_random += 1;
         } else {
@@ -75,7 +75,7 @@ const LOOKUP = gen_lookup_table: {
         Value: u5,
     };
     var lookup = [1]CharType{.Invalid} ** 256;
-    for (ALPHABET) |char, idx| {
+    for (ALPHABET, 0..) |char, idx| {
         lookup[char] = .{ .Value = idx };
         lookup[std.ascii.toLower(char)] = .{ .Value = idx };
     }
@@ -94,12 +94,12 @@ const LOOKUP = gen_lookup_table: {
 
 /// Convert the ULID into a byte array.
 pub fn toBytes(this: @This()) [16]u8 {
-    return @bitCast([16]u8, std.mem.nativeToBig(u128, this.value));
+    return @as([16]u8, @bitCast(std.mem.nativeToBig(u128, this.value)));
 }
 
 pub fn fromBytes(bytes: [16]u8) @This() {
     return @This(){
-        .value = std.mem.bigToNative(u128, @bitCast(u128, bytes)),
+        .value = std.mem.bigToNative(u128, @as(u128, @bitCast(bytes))),
     };
 }
 
@@ -109,7 +109,7 @@ pub fn encodeBase32(this: @This()) [ULID_BASE32_LEN]u8 {
     var buffer: [ULID_BASE32_LEN]u8 = undefined;
     var i: usize = ULID_BASE32_LEN;
     while (i > 0) : (i -= 1) {
-        buffer[i - 1] = ALPHABET[@truncate(u5, value)];
+        buffer[i - 1] = ALPHABET[@as(u5, @truncate(value))];
         value >>= 5;
     }
 
@@ -161,7 +161,7 @@ test "valid" {
     const enc2 = "2D9RW50MA499CMAGHM6DD42DTP";
 
     var lower: [enc2.len]u8 = undefined;
-    for (enc2) |char, idx| {
+    for (enc2, 0..) |char, idx| {
         lower[idx] = std.ascii.toLower(char);
     }
 
