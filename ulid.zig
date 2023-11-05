@@ -40,11 +40,9 @@ pub fn now() @This() {
 pub const MonotonicFactory = struct {
     rng: std.rand.DefaultCsprng,
 
-    // TODO: make these the exact size needed when issue is resolved: https://github.com/ziglang/zig/issues/7836
-
     // Set this to true to ensure that each value returned from `now()` is greater than the last
-    last_timestamp_ms: u64 = 0,
-    last_random: u128 = 0,
+    last_timestamp_ms: u48 = 0,
+    last_random: u80 = 0,
 
     pub fn init() !@This() {
         var seed: [32]u8 = undefined;
