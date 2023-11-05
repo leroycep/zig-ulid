@@ -132,7 +132,8 @@ pub fn decodeBase32(text: []const u8) !@This() {
                     return error.InvalidLength;
                 }
 
-                if (@shlWithOverflow(u128, value, 5, &value)) {
+                value, const of = @shlWithOverflow(value, 5);
+                if (of > 0) {
                     return error.Overflow;
                 }
                 value |= char_val;
