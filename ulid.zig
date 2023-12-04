@@ -195,7 +195,7 @@ test "Monotonic ULID factory: sequential output always increases" {
         ulid_to_generate.* = ulid_factory.now();
     }
 
-    var prev_ulid = generated_ulids[0];
+    const prev_ulid = generated_ulids[0];
     for (generated_ulids[1..]) |current_ulid| {
         try std.testing.expectEqual(std.math.Order.gt, cmp(current_ulid, prev_ulid));
     }
