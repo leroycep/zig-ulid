@@ -130,7 +130,9 @@ pub fn decodeBase32(text: []const u8) !@This() {
                     return error.InvalidLength;
                 }
 
-                value, const of = @shlWithOverflow(value, 5);
+                const value_and_of = @shlWithOverflow(value, 5);
+                value = value_and_of[0];
+                const of = value_and_of[1];
                 if (of > 0) {
                     return error.Overflow;
                 }
